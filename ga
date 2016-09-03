@@ -15,12 +15,13 @@ mode:
   c: clean
   a: ahead
   b: behind
+  d: diverged
   u: untracked
   m: modified
   s: staged
   h: stash
 
-default: caums
+default: cabdums
 
 If git-command is present it is run on every git repository that matches a
 status given in the mode string. If no command is given, only the status
