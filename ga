@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# TODO disclaimer:
+# this tool uses porcelain to determine the status of a git repository
+# fix, by using plumming
+
 function usage()
 {
 	echo "git-allstat [--mode <mode>] [git-command]
