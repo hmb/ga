@@ -4,6 +4,9 @@
 # this tool uses porcelain to determine the status of a git repository
 # fix, by using plumming
 
+# global vars
+CACHEFILE=".gacache"
+
 function usage()
 {
 	echo "git-allstat [--mode <mode>] [git-command]
@@ -165,12 +168,12 @@ if [[ -z "$mode" ]]; then
 fi
 
 # if the cache is missing, generate it
-if [[ ! -f .git-allstat-cache ]]; then
-	find -name .git -printf "%h\n" > .git-allstat-cache
+if [[ ! -f "${CACHEFILE}" ]]; then
+	find -name .git -printf "%h\n" > "${CACHEFILE}"
 fi
 
 echo "================================================================================"
-for dir in $(< .git-allstat-cache); do
+for dir in $(< "${CACHEFILE}"); do
 	#echo "$dir"
 	# only if dir is direct subdir dir=${dir##*/}
 	gitcmd "$dir" "$@"
