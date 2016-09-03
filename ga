@@ -6,6 +6,10 @@
 
 # global vars
 CACHEFILE=".gacache"
+MODEDEFAULT="cabdums"
+MODEALL="cabdumsh"
+
+
 
 function usage()
 {
@@ -21,7 +25,7 @@ mode:
   s: staged
   h: stash
 
-default: cabdums
+default: ${MODEDEFAULT}
 
 If git-command is present it is run on every git repository that matches a
 status given in the mode string. If no command is given, only the status
@@ -154,7 +158,7 @@ fi
 # get the mode from the cmdline params
 if [[ $# -ge 1 && "$1" == "--all" ]]; then
 	shift
-	mode="cabdumsh"
+	mode="${MODEALL}"
 fi
 
 # set default mode
@@ -164,7 +168,7 @@ if [[ -z "$mode" ]]; then
 	elif  [[ "$1" == "push" ]]; then
 		mode="a"
 	else
-		mode="cabdums"
+		mode="${MODEDEFAULT}"
 	fi
 fi
 
