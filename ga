@@ -1,0 +1,179 @@
+#!/bin/bash
+
+function usage()
+{
+	echo "git-allstat [--mode <mode>] [git-command]
+
+mode:
+  c: clean
+  a: ahead
+  b: behind
+  u: untracked
+  m: modified
+  s: staged
+  h: stash
+
+default: caums
+
+If git-command is present it is run on every git repository that matches a
+status given in the mode string. If no command is given, only the status
+is printed."
+}
+
+
+
+function gitstat()
+{
+	local gitresult
+	local status
+	local dir="$1"
+	shift
+
+	gitresult=$(git -C "$dir" status | grep -E '(Changes|Untracked|Your branch is ahead of|Your branch is behind|have diverged)')
+	status=""
+
+	if [[ "$mode" =~ "a" ]]; then
+		grep -e 'Your branch is ahead of' <<<${gitresult} >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			status="$status [ahead]"
+		fi
+	fi
+
+	if [[ "$mode" =~ "b" ]]; then
+		grep -e 'Your branch is behind' <<<${gitresult} >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			status="$status [behind]"
+		fi
+	fi
+
+	if [[ "$mode" =~ "d" ]]; then
+		grep -e 'have diverged' <<<${gitresult} >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			status="$status [diverged]"
+		fi
+	fi
+
+	if [[ "$mode" =~ "u" ]]; then
+		grep -e 'Untracked' <<<${gitresult} >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			status="$status [untracked]"
+		fi
+	fi
+
+	if [[ "$mode" =~ "m" ]]; then
+		grep -e 'Changes not' <<<${gitresult} >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			status="$status [modified]"
+		fi
+	fi
+
+	if [[ "$mode" =~ "s" ]]; then
+		grep -e 'Changes to' <<<${gitresult} >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			status="$status [staged]"
+		fi
+	fi
+
+	if [[ "$mode" =~ "h" ]]; then
+		gitstash=$(git -C "$dir" stash list | wc -l)
+
+		if [ $gitstash -gt 0 ] ; then
+			status="$status [stash]"
+		fi
+	fi
+
+	if [ -z "$status" ] ; then
+		# only set clean status if given in mode string
+		if [[ "$mode" =~ "c" ]]; then
+			status="  [clean]"
+		fi
+	else
+		status="*${status}"
+	fi
+
+	GITSTAT_RETVAL="${status}"
+}
+
+
+
+function gitcmd()
+{
+	local dir="$1"
+	local status
+	shift
+
+	gitstat "$dir"
+	status="$GITSTAT_RETVAL"
+	GITCMD_PRINT="no"
+
+	if [ -n "$status" ] ; then
+		printf "%-60s %s\n" "$dir" "$status"
+		if [[ $# -gt 0 ]]; then
+			if [[ "$1" == "gui" ]]; then
+				# start git gui as extra process
+				git -C "$dir" "$@" &
+			elif [[ "$1" == "gitk" ]]; then
+				# special treatment for gitk, run in subshell and cd in to dir
+				( cd "$dir" && gitk & )
+			else
+				# normal processing of subcommand
+				git -C "$dir" "$@"
+				# refresh status after command
+				gitstat "$dir"
+				if [[ "$status" != "$GITSTAT_RETVAL" ]]; then
+					# print new status if it has changed
+					status="$GITSTAT_RETVAL"
+					printf "%-60s %s\n" "$dir" "$status"
+				fi
+				GITCMD_PRINT="yes"
+			fi
+		fi
+	fi
+}
+
+
+
+GITSTAT_RETVAL=""
+GITCMD_PRINT=""
+
+# get the mode from the cmdline params
+if [[ $# -ge 2 && "$1" == "--mode" ]]; then
+	shift
+	mode=$1
+	shift
+fi
+
+# get the mode from the cmdline params
+if [[ $# -ge 1 && "$1" == "--all" ]]; then
+	shift
+	mode="cabdumsh"
+fi
+
+# set default mode
+if [[ -z "$mode" ]]; then
+	if  [[ "$1" == "gui" || "$1" == "gitk" ]]; then
+		mode="ums"
+	elif  [[ "$1" == "push" ]]; then
+		mode="a"
+	else
+		mode="cabdums"
+	fi
+fi
+
+# if the cache is missing, generate it
+if [[ ! -f .git-allstat-cache ]]; then
+	find -name .git -printf "%h\n" > .git-allstat-cache
+fi
+
+echo "================================================================================"
+for dir in $(< .git-allstat-cache); do
+	#echo "$dir"
+	# only if dir is direct subdir dir=${dir##*/}
+	gitcmd "$dir" "$@"
+	if [[ "$GITCMD_PRINT" == "yes" ]]; then
+		echo "================================================================================"
+	fi
+done
+if [[ "$GITCMD_PRINT" != "yes" ]]; then
+	echo "================================================================================"
+fi
