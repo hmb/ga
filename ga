@@ -170,6 +170,12 @@ fi
 
 # if the cache is missing, generate it
 if [[ ! -f "${CACHEFILE}" ]]; then
+	# check if there's a local .git dir
+	if [[ -d .git ]]; then
+		echo "WARNING: there's a local git repository in your working dir"
+		echo "if you want to use ga from inside a git repository, create a ${CACHEFILE} manually"
+		exit
+	fi
 	find -name .git -printf "%h\n" > "${CACHEFILE}"
 fi
 
